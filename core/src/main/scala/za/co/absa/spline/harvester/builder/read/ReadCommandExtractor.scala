@@ -23,6 +23,7 @@ import com.crealytics.spark.excel.{ExcelRelation, WorkbookReader}
 import com.mongodb.spark.config.ReadConfig
 import com.mongodb.spark.rdd.MongoRDD
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.cassandra.TableRef
 import org.apache.spark.sql.catalyst.catalog.{CatalogTable, HiveTableRelation}
@@ -81,11 +82,26 @@ class ReadCommandExtractor(pathQualifier: PathQualifier, session: SparkSession) 
 
         case `_: KafkaRelation`(kr) =>
           val options = extractFieldValue[Map[String, String]](kr, "sourceOptions")
-          val topics: Seq[String] = extractFieldValue[ConsumerStrategy](kr, "strategy") match {
-            case AssignStrategy(partitions) => partitions.map(_.topic)
-            case SubscribeStrategy(topics) => topics
-            case SubscribePatternStrategy(pattern) => kafkaTopics(options("kafka.bootstrap.servers")).filter(_.matches(pattern))
-          }
+
+          // org.apache.spark.sql.kafka010.ConsumerStrategy - private classes cannot be used directly
+          val consumerStrategy = extractFieldValue[AnyRef](kr, "strategy")
+
+          def tryAssignStrategy(): Try[Seq[String]] =
+            Try(extractFieldValue[Array[TopicPartition]](consumerStrategy, "partitions"))
+              .map(partitions => partitions.map(_.topic()))
+
+          def trySubscribeStrategy(): Try[Seq[String]] =
+            Try(extractFieldValue[Seq[String]](consumerStrategy, "topics"))
+
+          def trySubscribePatternStrategy(): Try[Seq[String]] =
+            Try(extractFieldValue[String](consumerStrategy, "topicPattern"))
+                .map(pattern => kafkaTopics(options("kafka.bootstrap.servers")).filter(_.matches(pattern)))
+
+          val topics: Seq[String] =
+            tryAssignStrategy
+              .getOrElse(trySubscribeStrategy
+                .getOrElse(trySubscribePatternStrategy.get))
+
           ReadCommand(SourceIdentifier.forKafka(topics: _*), operation, options ++ Map(
             "startingOffsets" -> extractFieldValue[AnyRef](kr, "startingOffsets"),
             "endingOffsets" -> extractFieldValue[AnyRef](kr, "endingOffsets")
