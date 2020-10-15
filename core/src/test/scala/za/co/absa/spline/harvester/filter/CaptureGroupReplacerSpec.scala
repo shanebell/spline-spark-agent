@@ -31,7 +31,7 @@ class CaptureGroupReplacerSpec extends AnyFlatSpec with Matchers {
     replace("foo@bar.cz", Seq("""[^@]+@(\w+).\w+""".r)) shouldBe s"foo@${Replacement}.cz"
 
     replace(
-      "ftp://username:password@hostname/",
+      "ftp://username:pumba@hostname/",
       Seq("""ftp:\/\/[^:]+:([^@]+)@""".r)
     ) shouldBe s"ftp://username:${Replacement}@hostname/"
   }
@@ -43,16 +43,16 @@ class CaptureGroupReplacerSpec extends AnyFlatSpec with Matchers {
 
   it should "replace multiple capturing groups" in {
     val regexes = Seq("""@([^:]+):[\d]+:([^\s\/]+)""".r)
-    val str = "something@password:34:secret/"
+    val str = "something@pumba:34:timon/"
 
     replace(str, regexes) shouldBe s"something@${Replacement}:34:${Replacement}/"
   }
 
   it should "replace groups from multiple regexes" in {
 
-    val regexes = Seq("""password=([^&\s]+)""".r, """secret=([^&\s]+)""".r)
-    val str = "something&foo=42&password=lala&bar=66&secret=33"
+    val regexes = Seq("""pumba=([^&\s]+)""".r, """timon=([^&\s]+)""".r)
+    val str = "something&foo=42&pumba=lala&bar=66&timon=33"
 
-    replace(str, regexes) shouldBe s"something&foo=42&password=${Replacement}&bar=66&secret=${Replacement}"
+    replace(str, regexes) shouldBe s"something&foo=42&pumba=${Replacement}&bar=66&timon=${Replacement}"
   }
 }

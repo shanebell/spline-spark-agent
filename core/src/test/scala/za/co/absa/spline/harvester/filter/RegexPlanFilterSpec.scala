@@ -94,7 +94,7 @@ class RegexPlanFilterSpec extends AnyFlatSpec with Matchers {
 
   it should "handle several nested structures" in {
 
-    val map = Map("a" -> true, "b" -> 45, "c" -> Some(Seq("foo45bar%%baz", "33x")), "d"-> Map(33 -> "B52"))
+    val map = Map("a" -> true, "b" -> 45, "c" -> Some(Seq("foo45bar", "33x")), "d"-> Map(33 -> "B52"))
     val dataOp = templateData.copy(params = Some(map))
     val plan = toPlan(templateWrite, List(templateRead), List(dataOp))
 
