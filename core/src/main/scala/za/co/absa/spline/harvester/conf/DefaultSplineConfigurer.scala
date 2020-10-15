@@ -56,6 +56,11 @@ object DefaultSplineConfigurer {
      * Which strategy should be used to detect mode=ignore writes
      */
     val UserExtraMetadataProviderClass = "spline.user_extra_meta_provider.className"
+
+    /**
+     * path to file with regex filter definitions. Can be used to filter passwords from lineage
+     */
+    val SplineFilterDefinitionPath = "spline.filter_definitions.path"
   }
 
   def apply(sparkSession: SparkSession): DefaultSplineConfigurer = {
@@ -102,7 +107,8 @@ class DefaultSplineConfigurer(sparkSession: SparkSession, userConfiguration: Con
     sparkSession,
     splineMode,
     ignoredWriteDetectionStrategy,
-    userExtraMetadataProvider
+    userExtraMetadataProvider,
+    Option(configuration.getString(SplineFilterDefinitionPath))
   )
 
   private def instantiate[T: ClassTag](className: String): T = {

@@ -36,6 +36,7 @@ import za.co.absa.spline.harvester.builder.write.WriteCommandExtractor
 import za.co.absa.spline.harvester.conf.SplineConfigurer.SplineMode
 import za.co.absa.spline.harvester.conf.SplineConfigurer.SplineMode.SplineMode
 import za.co.absa.spline.harvester.extra.UserExtraMetadataProvider
+import za.co.absa.spline.harvester.filter.PlanFilter
 import za.co.absa.spline.harvester.iwd.IgnoredWriteDetectionStrategy
 import za.co.absa.spline.harvester.logging.ObjectStructureDumper
 import za.co.absa.spline.producer.model._
@@ -49,7 +50,8 @@ class LineageHarvester(
   writeCommandExtractor: WriteCommandExtractor,
   readCommandExtractor: ReadCommandExtractor,
   iwdStrategy: IgnoredWriteDetectionStrategy,
-  userExtraMetadataProvider: UserExtraMetadataProvider
+  userExtraMetadataProvider: UserExtraMetadataProvider,
+  planFilter: PlanFilter
 ) extends Logging {
 
   private val componentCreatorFactory: ComponentCreatorFactory = new ComponentCreatorFactory
@@ -100,14 +102,15 @@ class LineageHarvester(
           ExecutionPlanExtra.DataTypes -> componentCreatorFactory.dataTypeConverter.values,
           ExecutionPlanExtra.Attributes -> componentCreatorFactory.attributeConverter.values
         )
-        val p = ExecutionPlan(
+        val originalPlan = ExecutionPlan(
           id = UUID.randomUUID,
           operations = Operations(writeOp, opReads.asOption, opOthers.asOption),
           systemInfo = SystemInfo(AppMetaInfo.Spark, spark.SPARK_VERSION),
           agentInfo = Some(AgentInfo(AppMetaInfo.Spline, SplineBuildInfo.Version)),
           extraInfo = planExtra.asOption
         )
-        p.withAddedExtra(userExtraMetadataProvider.forExecPlan(p, ctx))
+        val filteredPlan = planFilter.filter(originalPlan)
+        filteredPlan.withAddedExtra(userExtraMetadataProvider.forExecPlan(filteredPlan, ctx))
       }
 
       if (writeCommand.mode == SaveMode.Ignore && iwdStrategy.wasWriteIgnored(writeMetrics)) {

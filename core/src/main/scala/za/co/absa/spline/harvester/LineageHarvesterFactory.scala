@@ -24,6 +24,7 @@ import za.co.absa.spline.harvester.builder.read.PluggableReadCommandExtractor
 import za.co.absa.spline.harvester.builder.write.PluggableWriteCommandExtractor
 import za.co.absa.spline.harvester.conf.SplineConfigurer.SplineMode.SplineMode
 import za.co.absa.spline.harvester.extra.UserExtraMetadataProvider
+import za.co.absa.spline.harvester.filter.{NoOpPlanFilter, RegexPlanFilter}
 import za.co.absa.spline.harvester.iwd.IgnoredWriteDetectionStrategy
 import za.co.absa.spline.harvester.plugin.registry.AutoDiscoveryPluginRegistry
 import za.co.absa.spline.harvester.qualifier.HDFSPathQualifier
@@ -34,13 +35,15 @@ class LineageHarvesterFactory(
   session: SparkSession,
   splineMode: SplineMode,
   iwdStrategy: IgnoredWriteDetectionStrategy,
-  userExtraMetadataProvider: UserExtraMetadataProvider) {
+  userExtraMetadataProvider: UserExtraMetadataProvider,
+  filterDefPathOption: Option[String]) {
 
   private val pathQualifier = new HDFSPathQualifier(session.sparkContext.hadoopConfiguration)
   private val pluginRegistry = new AutoDiscoveryPluginRegistry(pathQualifier, session)
   private val dataSourceFormatResolver = new PluggableDataSourceFormatResolver(pluginRegistry)
   private val writeCommandExtractor = new PluggableWriteCommandExtractor(pluginRegistry, dataSourceFormatResolver)
   private val readCommandExtractor = new PluggableReadCommandExtractor(pluginRegistry, dataSourceFormatResolver)
+  private val planFilter = filterDefPathOption.map(RegexPlanFilter(_)).getOrElse(new NoOpPlanFilter)
 
 
   def harvester(logicalPlan: LogicalPlan, executedPlan: Option[SparkPlan]): LineageHarvester =
@@ -50,6 +53,7 @@ class LineageHarvesterFactory(
       writeCommandExtractor,
       readCommandExtractor,
       iwdStrategy,
-      userExtraMetadataProvider
+      userExtraMetadataProvider,
+      planFilter
     )
 }
